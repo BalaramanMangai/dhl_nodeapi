@@ -15,7 +15,19 @@ const fetchAllUsers = async (req, res) => {
         res.status(500).json({ error: 'Database error', details: err.message }); // Return error response
     }
 };
-
+// Fetch all users
+const getOverview = async (req, res) => {
+    try {
+        const login_user = req.query.login_user;
+        const login_role = req.query.login_role;
+        const users = await userModel.getOverview(login_user);
+        
+        res.status(200).json(users); // Send the users as JSON
+    } catch (err) {
+        console.error(err); // Log the error for debugging
+        res.status(500).json({ error: 'Database error', details: err.message }); // Return error response
+    }
+};
 // Fetch all users
 const fetchAgents = async (req, res) => {
     try {
@@ -73,6 +85,8 @@ const getUserCode = async (req, res) => {
 
             
             const result = await userModel.saleProduct(memberData);
+
+            console.log('result',result);
             res.status(201).json({
                 status: 201,
                 message: 'Members assigned successfully',
@@ -203,5 +217,6 @@ module.exports = {
     login,
     fetchAgents,
     getUserCode,
-    saleProduct
+    saleProduct,
+    getOverview
 };

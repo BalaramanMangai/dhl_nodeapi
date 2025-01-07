@@ -3,6 +3,7 @@ const db = require('../db/connection');
 
 const mysql = require('mysql2/promise'); // Import the promise client
 const bcrypt = require('bcrypt');
+const { format } = require('date-fns');
 
 // Fetch all users
 const getAllUsers = async (roleId,user_id,login_role) => {
@@ -26,7 +27,21 @@ const getAllUsers = async (roleId,user_id,login_role) => {
         throw err; // Propagate error to the caller
     }
 };
+const getOverview = async (login_user) => {
+    try {
 
+        let rows = [];
+
+        const selectQry="SELECT usr.username as agent_code,us.username as member_code,rm.payment_date,rd.result_time,rd.price,rd.product_code,rd.number_product FROM request_master rm LEFT JOIN request_details rd ON rm.request_id=rd.request_id LEFT JOIN users usr ON rm.agent_id=usr.user_id LEFT JOIN users us ON rm.user_id=us.user_id WHERE rm.login_user = ?";
+
+        [rows] = await db.query(selectQry, [login_user]);
+
+        return rows;
+    } catch (err) {
+        console.error('Error in getAllUsers:', err);
+        throw err; // Propagate error to the caller
+    }
+};
 
 const getAllAgents = async () => {
     try {
@@ -108,41 +123,62 @@ const getAllAgents = async () => {
             console.log('sale_id',userData.sale_id);
             console.log('userData',userData);
 
+//            const { rows, agent_id, user_id, payment_date } = req.body;
+
+
             
             if (!userData || typeof userData !== 'object') {
                 throw new Error('Invalid member data provided');
             }
+            const now = new Date();
+            const formattedDate = format(now, 'yyyy-MM-dd HH:mm:ss'); // Custom format
 
-            if(userData.sale_id===0){
 
-                const query = `INSERT INTO sales 
-                    (agent_id,user_id,result_time, rupees_category, product_code, no_of_product,sale_by)
-                    VALUES (?,?, ?, ?, ?, ?,?)`;           
-                    const values = [
-                    userData.agent_id || 0,
-                    userData.user_id,
-                    userData.result_time,
-                    userData.rupees_category,
-                    userData.product_code,
-                    userData.num_products,1];
+                    const query = `INSERT INTO request_master 
+                                        (agent_id,user_id,payment_date, request_status, submitted_on)
+                                        VALUES (?,?, ?, ?, ?)`;           
+                                        const values = [
+                                        userData.agent_id || 0,
+                                        userData.user_id,
+                                        userData.login_user,
+                                        userData.payment_date,
+                                        1,formattedDate];
 
                     const [result] = await connection.query(query, values);
-                    return result.insertId;
+                    const request_id = result.insertId;
 
-            }else{
-                    const query = `UPDATE sales SET result_time = ?, rupees_category = ?, 
-                        product_code = ?, no_of_product = ? WHERE sale_id = ?`;
-                    const values = [
-                        userData.result_time,
-                        userData.rupees_category,
-                        userData.product_code,
-                        userData.num_products,
-                        userData.sale_id,
-                    ];
-                    //console.log("Executing UPDATE query", { query, values });
-                    const [result] = await connection.query(query, values);
-                    return result.affectedRows;
-            } 
+                    console.log('userData>>>',userData);
+
+
+
+                    const insertQuery = `
+                    INSERT INTO request_details (request_id,result_time,price, product_code, number_product, detail_status,added_on)
+                    VALUES ?`;
+
+                    const values_row = userData.rows.map((row) => [
+                        request_id,
+                        row.result_time,
+                        row.rupees_category,
+                        row.product_code,
+                        row.num_products,
+                        1,
+                        formattedDate,
+                      ]);
+
+
+                      connection.query(insertQuery, [values_row], (err, result) => {
+                        if (err) {
+                          console.error(err);
+                          return res.status(500).json({ error: 'Failed to insert data.' });
+                        }
+                    
+                        res.status(200).json({
+                          message: 'Data inserted successfully!',
+                          affectedRows: result.affectedRows,
+                        });
+                      });
+                    
+                
 
 
           } catch (err) {
@@ -267,5 +303,6 @@ module.exports = {
     findByUsername,
     getAllAgents,
     getUserCode,
-    saleProduct
+    saleProduct,
+    getOverview
 };

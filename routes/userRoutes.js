@@ -13,6 +13,7 @@ router.get('/getUserCode', userController.getUserCode);
 router.post('/updateMember', validateUser, userController.updateMember);
 router.post('/saleProduct', userController.saleProduct);
 router.post('/login', userController.login);
+router.get('/getOverview', userController.getOverview);
 
 module.exports = router;
 
